@@ -1,0 +1,82 @@
+BLITZ: THE LEAGUE II MONEY TOOL v1.0 — START HERE
+====================================================
+
+This is the short version. Read README.md if anything below is unfamiliar.
+
+WHAT THIS DOES
+--------------
+Changes CURRENT CASH in every occupied campaign slot in a decrypted PS3
+BSAV0.SAV file, then repairs Blitz: The League II's internal checksum.
+
+Verified game version:
+    North America / BLUS30203
+
+Tested amount:
+    $8,500,000 per occupied campaign
+
+Observed maximum supported cash value:
+    $16,777,215
+
+THIS DOES NOT JAILBREAK YOUR PS3.
+The intended workflow uses a normal stock PS3, a FAT32 USB drive, a Windows PC,
+Bruteforce Save Data, and this offline editor.
+
+THE 60-SECOND WORKFLOW
+----------------------
+1. PS3: copy your Blitz save to USB using Saved Data Utility (PS3).
+
+2. PC: COPY THE ENTIRE SAVE FOLDER SOMEWHERE SAFE. Make a second working copy.
+   Never modify your only copy.
+
+3. Bruteforce Save Data 4.7.5:
+       Select the Blitz save
+       Decrypt PFD > Decrypt All > Yes
+
+4. Double-click:
+       Blitz2MoneyTool.html
+
+5. Choose the DECRYPTED:
+       BSAV0.SAV
+
+6. Confirm the campaign slots shown by the tool make sense.
+
+7. Enter your target cash amount and click:
+       Patch all detected campaigns
+
+8. Your browser downloads a NEW file named:
+       BSAV0.SAV
+
+   Replace the decrypted BSAV0.SAV in your WORKING save folder with this file.
+   Do not touch your backup.
+
+9. Bruteforce:
+       Update PFD > Full update > Yes to encrypt files
+       Encrypt PFD > Encrypt decrypted files    (if this option is available)
+       Verify PFD                               (make sure there are no errors)
+       Rebuild > Rebuild Full
+
+10. Copy the finished save folder to:
+        USB:\PS3\SAVEDATA\
+
+11. PS3:
+        Game
+        > Saved Data Utility (PS3)
+        > USB Device
+        > Blitz: The League II
+        > Triangle
+        > Copy
+
+12. Start Blitz. Load each campaign. Buy something. Save. Quit. Reload.
+    Only after that works should you consider the modified save proven-good.
+
+IF THE TOOL SAYS IT FOUND ZERO CAMPAIGNS
+---------------------------------------
+STOP. Do not force anything.
+
+Most likely causes:
+- You selected an encrypted BSAV0.SAV instead of the decrypted one.
+- You selected the wrong file.
+- The save is from an untested region/version or has a different structure.
+- The save itself is damaged.
+
+See README.md for Bruteforce setup and troubleshooting.
