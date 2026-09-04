@@ -1,0 +1,910 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Blitz: The League II Save Editor v1.3</title>
+<style>
+  :root {
+    color-scheme: light dark;
+    --bg:#171717; --panel:#222; --panel2:#292929; --text:#f3f3f3; --muted:#b8b8b8;
+    --border:#444; --accent:#52a8ff; --good:#67d391; --warn:#ffc857; --bad:#ff6b6b;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg:#f4f4f5; --panel:#fff; --panel2:#fafafa; --text:#171717; --muted:#5f6368;
+      --border:#d4d4d8; --accent:#0069c2; --good:#157a3d; --warn:#8a5b00; --bad:#b42318; }
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:Segoe UI,Arial,sans-serif; background:var(--bg); color:var(--text); }
+  main { max-width:1120px; margin:0 auto; padding:28px 18px 56px; }
+  h1 { margin:0 0 6px; font-size:29px; }
+  h2 { font-size:19px; margin:0 0 10px; }
+  h3 { font-size:16px; margin:0; }
+  p { line-height:1.45; }
+  code { font-family:Consolas,monospace; }
+  .muted { color:var(--muted); }
+  .good { color:var(--good); font-weight:700; }
+  .warn { color:var(--warn); font-weight:700; }
+  .bad { color:var(--bad); font-weight:700; }
+  .small { font-size:13px; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:16px; margin-top:16px; }
+  .subpanel { background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:13px; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; align-items:end; }
+  .field { flex:1 1 250px; min-width:0; }
+  label { display:block; font-weight:600; margin-bottom:6px; }
+  input[type="file"], input[type="text"], input[type="number"], select {
+    width:100%; padding:10px 11px; border:1px solid var(--border); border-radius:8px;
+    background:transparent; color:var(--text); font:inherit;
+  }
+  input[type="checkbox"] { width:17px; height:17px; vertical-align:middle; }
+  button {
+    padding:11px 16px; border:0; border-radius:8px; background:var(--accent); color:#fff;
+    font:inherit; font-weight:700; cursor:pointer; min-height:42px;
+  }
+  button:disabled { opacity:.45; cursor:not-allowed; }
+  .status { margin-top:12px; min-height:24px; }
+  .badge { display:inline-block; border:1px solid var(--border); border-radius:999px; padding:2px 8px; font-size:12px; color:var(--muted); }
+  .badge.good { color:var(--good); }
+  .badge.warn { color:var(--warn); }
+  .campaign { margin-top:14px; }
+  .campaign-head { display:flex; gap:12px; justify-content:space-between; align-items:flex-start; flex-wrap:wrap; }
+  .metrics { display:flex; gap:10px 16px; flex-wrap:wrap; color:var(--muted); font-size:13px; }
+  .campaign-grid { display:grid; grid-template-columns:minmax(220px, 0.8fr) minmax(320px, 1.5fr); gap:14px; margin-top:12px; }
+  @media (max-width:800px) { .campaign-grid { grid-template-columns:1fr; } }
+  .checkline { display:flex; gap:9px; align-items:flex-start; margin:10px 0; }
+  .checkline label { margin:0; font-weight:500; }
+  .roster { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:7px 12px; max-height:400px; overflow:auto; padding-right:4px; }
+  @media (max-width:650px) { .roster { grid-template-columns:1fr; } }
+  .player { border-bottom:1px solid var(--border); padding:7px 2px; min-width:0; }
+  .player-top { display:flex; gap:8px; align-items:center; min-width:0; }
+  .player-name { font-weight:600; min-width:0; overflow-wrap:anywhere; }
+  .player-meta { margin-left:25px; margin-top:3px; font-size:12px; color:var(--muted); }
+  .player-actions { display:flex; gap:12px; flex-wrap:wrap; margin:7px 0 0 25px; }
+  .mini-check { display:flex; gap:6px; align-items:center; font-size:12px; color:var(--muted); }
+  .mini-check input { margin:0; }
+  .juice-info { margin-top:8px; padding:9px 10px; border:1px solid var(--border); border-radius:8px; background:var(--panel); }
+  .build-summary { margin-top:12px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--panel2); }
+  .build-summary ul { margin:6px 0 0; padding-left:20px; }
+  .money-edit { margin-top:12px; }
+
+  .steps li { margin:6px 0; line-height:1.4; }
+  .notice { border-left:4px solid var(--warn); padding-left:12px; }
+  .experimental { color:var(--warn); font-weight:800; letter-spacing:.02em; }
+  .actions { display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
+  .hidden { display:none !important; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Blitz: The League II Save Editor <span>v1.3</span></h1>
+  <p class="muted">Offline editor for decrypted PS3 <code>BSAV0.SAV</code> files. Verified against the North American <code>BLUS30203</code> save format. v1.2.4 builds on the proven zero-risk juice editor with per-campaign cash controls, Juice of the Week effect descriptions, the campaign-detection fix, mapped player stat modifiers, and an custom TGH +5 effect that is independent from juicing.</p>
+
+  <div class="panel notice">
+    <strong>Back up the entire PS3 save folder before editing.</strong>
+    <p class="small" style="margin-bottom:0">v1.3 completed the project's stock-PS3 acceptance tests for money editing, zero-risk juice insertion, Franchise juicing, custom TGH effects, Select All TGH, gameplay, save/reload, and week transition. Keep a clean backup before modifying any save.</p>
+  </div>
+
+  <div class="panel">
+    <div class="row">
+      <div class="field">
+        <label for="saveFile">Decrypted BSAV0.SAV</label>
+        <input id="saveFile" type="file" accept=".SAV,.sav,application/octet-stream">
+      </div>
+      <div class="field">
+        <label>Output</label>
+        <button id="buildBtn" type="button" disabled>Build patched BSAV0.SAV</button>
+      </div>
+    </div>
+    <div id="status" class="status muted" aria-live="polite">Choose a decrypted save file to analyze it.</div>
+    <p id="crcLine" class="small muted" style="margin-bottom:0"></p>
+  </div>
+
+  <div id="buildSummary" class="panel hidden">
+    <h2>Last build</h2>
+    <div id="buildSummaryBody" class="small"></div>
+  </div>
+
+  <div id="campaigns"></div>
+
+  <div class="panel">
+    <h2>v1.3 controls</h2>
+    <ul class="steps">
+      <li><strong>Cash:</strong> enable and set a different current-cash amount for each campaign.</li>
+      <li><strong>Juice of the Week:</strong> choose the weekly drug; its effect and normal in-game price are shown below the selector.</li>
+      <li><strong>Juice:</strong> inserts the normal 14-byte player juice record with risk <strong>0</strong>. This remains capped at the normal three-player total. Franchise-style two-copy players are mirrored automatically into both real player-state records.</li>
+      <li><strong>Apply effects of TGH?</strong> independently adds +5 to one random mapped visible stat modifier. It does <strong>not</strong> add a juice record and does not require TGH to be the selected weekly drug.</li>
+      <li><strong>Zero existing risk:</strong> zeros risk on already-juiced records and resets the campaign Team Risk byte.</li>
+    </ul>
+    <p class="small muted">Custom TGH uses only the nine mapped visible stat fields and skips the unresolved hidden field in the same player progression block. The saved modifier is never written above 100. Exact stock base-rating math is not yet decoded, so this is a save-field cap rather than a proven calculation of every player's final displayed rating.</p>
+  </div>
+
+  <div class="panel">
+    <h2>Important</h2>
+    <p><strong>This editor does not decrypt or resign PS3 saves.</strong> Use Bruteforce Save Data before and after editing. The page itself contains no upload, analytics, telemetry, remote scripts, or network requests. Your save is processed entirely in your browser.</p>
+  </div>
+</main>
+<script>
+(() => {
+  "use strict";
+
+  const CAMPAIGN_ANCHOR = Uint8Array.from([0xC5,0x1C,0xD1,0x42,0x5B,0x3A,0x3A,0x3B,0x38,0x39,0x45,0x07,0x51,0x07]);
+  // Bytes at anchor +0x0E/+0x0F are campaign state, not part of the stable signature.
+  const POSITIVE_CASH_REL = 0x10;
+  const MARKER = Uint8Array.from([0xBF,0xA3,0x27,0xB0,0xFC,0xCC,0x7A,0x8D]);
+  const ROSTER_SIG = Uint8Array.from([0xF0,0x7B,0xF2,0x69,0x3B,0x3A,0x3A,0x30]);
+
+  const EXPECTED_PREFIX_BASE = 0xBD80;
+  const SLOT_STRIDE = 0x16800;
+  const ROSTER_END_BASE = 0x19D5F;
+  const SUMMARY_CASH_BASE = 0x49C;
+  const SUMMARY_STRIDE = 0x120;
+  const GLOBAL_CASH_BASE = 0x16BC;
+  const MAX_CASH = 0xFFFFFF;
+  const MAX_NORMAL_JUICED = 3;
+
+  const JUICES = [
+    {id:9,  name:"Andersol",    cost:55000, effect:"Removes Clash cooldown."},
+    {id:10, name:"Krextol",     cost:40000, effect:"Adds +1 extra point to the skill trained that week."},
+    {id:11, name:"Hoptenal",    cost:40000, effect:"Reduces stamina lost from tackles by 50%."},
+    {id:12, name:"Mastaphene",  cost:60000, effect:"Prevents normal stamina drain from tackles/big hits, but injury-related stamina loss still applies. Injury-treatment minigames also do not restore stamina while the effect is active."},
+    {id:13, name:"Zoltox",      cost:50000, effect:"Makes the player immune to injury."},
+    {id:14, name:"Letaciline",  cost:40000, effect:"Successful Clash moves drain the opponent's Clash meter."},
+    {id:15, name:"Ultranol",    cost:60000, effect:"Increases the severity of injuries caused."},
+    {id:16, name:"BF-56",       cost:65000, effect:"Ball carrier gains a Clash Icon for every 30 yards gained on a play."},
+    {id:17, name:"Cyloderm",    cost:75000, effect:"Clash/Turbo drain 50% slower, and Dirty Hits cost 50% less Clash."},
+    {id:18, name:"TGH",         cost:80000, effect:"Advertised by the game as permanently +5 to a random statistic. Native +5 did not appear in controlled development-console tests; the separate custom TGH effect can apply the +5 directly."}
+  ];
+  const VISIBLE_STATS = [
+    {name:"Speed", vectorIndex:0},
+    {name:"Agility", vectorIndex:1},
+    {name:"Strength", vectorIndex:3},
+    {name:"Hands", vectorIndex:4},
+    {name:"Break Tackle", vectorIndex:5},
+    {name:"Pass/Kick", vectorIndex:6},
+    {name:"Tackle", vectorIndex:7},
+    {name:"Block", vectorIndex:8},
+    {name:"Resist Injury", vectorIndex:9}
+  ];
+  const JUICE_BY_ID = new Map(JUICES.map(j => [j.id, j]));
+
+  const fileInput = document.getElementById("saveFile");
+  const buildBtn = document.getElementById("buildBtn");
+  const status = document.getElementById("status");
+  const crcLine = document.getElementById("crcLine");
+  const campaignsEl = document.getElementById("campaigns");
+  const buildSummary = document.getElementById("buildSummary");
+  const buildSummaryBody = document.getElementById("buildSummaryBody");
+
+  let originalBytes = null;
+  let initialAnalysis = null;
+
+  function findAll(data, pattern, start=0, end=data.length) {
+    const found = [];
+    const last = Math.min(data.length - pattern.length, end - pattern.length);
+    outer: for (let i=Math.max(0,start); i<=last; i++) {
+      for (let j=0; j<pattern.length; j++) if (data[i+j] !== pattern[j]) continue outer;
+      found.push(i);
+    }
+    return found;
+  }
+
+  function readU24BE(data, off) {
+    return ((data[off] << 16) | (data[off+1] << 8) | data[off+2]) >>> 0;
+  }
+  function readU32BE(data, off) {
+    return (((data[off] << 24) >>> 0) | (data[off+1] << 16) | (data[off+2] << 8) | data[off+3]) >>> 0;
+  }
+  function readI32BE(data, off) { return readU32BE(data, off) | 0; }
+  function writeU24BE(data, off, value) {
+    data[off]=(value>>>16)&255; data[off+1]=(value>>>8)&255; data[off+2]=value&255;
+  }
+  function writeU32BE(data, off, value) {
+    value >>>= 0;
+    data[off]=(value>>>24)&255; data[off+1]=(value>>>16)&255; data[off+2]=(value>>>8)&255; data[off+3]=value&255;
+  }
+  function decodedByte(data, off) { return data[off] ^ 0x3A; }
+  function decodedU24(data, off) {
+    return ((decodedByte(data,off)<<16) | (decodedByte(data,off+1)<<8) | decodedByte(data,off+2)) >>> 0;
+  }
+  function decodedU32(data, off) {
+    return (((decodedByte(data,off)<<24)>>>0) | (decodedByte(data,off+1)<<16) | (decodedByte(data,off+2)<<8) | decodedByte(data,off+3)) >>> 0;
+  }
+  function decodedI32(data, off) { return decodedU32(data,off) | 0; }
+  function writeDecodedByte(data, off, value) { data[off] = (value & 255) ^ 0x3A; }
+  function writeDecodedU32(data, off, value) {
+    value >>>= 0;
+    data[off]=((value>>>24)&255)^0x3A;
+    data[off+1]=((value>>>16)&255)^0x3A;
+    data[off+2]=((value>>>8)&255)^0x3A;
+    data[off+3]=(value&255)^0x3A;
+  }
+
+  function crc32BigInit0(data, start=0x254) {
+    let crc=0>>>0;
+    for (let i=start; i<data.length; i++) {
+      crc=(crc^((data[i]<<24)>>>0))>>>0;
+      for (let bit=0; bit<8; bit++) {
+        crc=(crc&0x80000000) ? ((((crc<<1)>>>0)^0x04C11DB7)>>>0) : ((crc<<1)>>>0);
+      }
+    }
+    return crc>>>0;
+  }
+
+  function nearestSlot(prefixOffset) {
+    let best=-1, distance=Number.MAX_SAFE_INTEGER;
+    for (let i=0;i<5;i++) {
+      const d=Math.abs(prefixOffset-(EXPECTED_PREFIX_BASE+i*SLOT_STRIDE));
+      if (d<distance) { best=i; distance=d; }
+    }
+    return distance<=0x2000 ? best : -1;
+  }
+
+  function isNameChar(v) {
+    return (v>=0x41&&v<=0x5A) || (v>=0x30&&v<=0x39) || v===0x20 || v===0x27 || v===0x2D || v===0x2E;
+  }
+
+  function readDecodedNamePart(data, start, end) {
+    if (start<0 || start>=end) return null;
+    let out="";
+    for (let p=start; p<end && p<start+24; p++) {
+      const v=decodedByte(data,p);
+      if (v===0) return out.length>=2 ? {text:out, next:p+1} : null;
+      if (!isNameChar(v)) return null;
+      out += String.fromCharCode(v);
+    }
+    return null;
+  }
+
+  function tailLooksLikePlayer(data, nameOffset, shiftBack=0) {
+    const end=nameOffset-shiftBack;
+    const s=end-18;
+    if (s<0) return false;
+    // Strong invariant seen on every real player record in the controlled roster data,
+    // while HFRANCHISE DUMMY intentionally fails it.
+    return decodedByte(data,s+12)===0x04 && decodedByte(data,s+13)===0x00 &&
+           decodedByte(data,s+14)===0x00 && decodedByte(data,s+15)===0x01;
+  }
+
+  function readJuiceRecord(data, recordOffset) {
+    if (recordOffset<0 || recordOffset+14>data.length) return null;
+    const v=[];
+    for (let i=0;i<14;i++) v.push(decodedByte(data,recordOffset+i));
+    if (v[0]!==0x12 || v[1]!==0x04 || v[2]!==0x00 || v[3]!==0x00 || v[4]!==0x01) return null;
+    if (!JUICE_BY_ID.has(v[9])) return null;
+    return {offset:recordOffset, index:v[5], drugId:v[9], risk:(((v[10]<<24)>>>0)|(v[11]<<16)|(v[12]<<8)|v[13])>>>0};
+  }
+
+  function parsePlayers(data, rosterSig, rosterEnd) {
+    if (rosterSig<0 || rosterEnd<=rosterSig) return [];
+    const scanEnd=Math.min(rosterEnd, rosterSig+0x1800);
+    const occurrences=[];
+
+    for (let off=rosterSig+8; off<scanEnd-8; off++) {
+      const first=readDecodedNamePart(data,off,scanEnd);
+      if (!first) continue;
+      const last=readDecodedNamePart(data,first.next,scanEnd);
+      if (!last) continue;
+
+      let juice=readJuiceRecord(data,off-14);
+      const tailValid=juice ? tailLooksLikePlayer(data,off,14) : tailLooksLikePlayer(data,off,0);
+      if (!tailValid) continue;
+
+      const full=(first.text+" "+last.text).trim().replace(/\s+/g," ");
+      if (full==="HFRANCHISE DUMMY") { off=last.next-1; continue; }
+
+      const countOffset=juice ? off-42 : off-28;
+      const count=(countOffset>=0) ? decodedByte(data,countOffset) : -1;
+      if (count<1 || count>32) { off=last.next-1; continue; }
+
+      const statStart=countOffset+12;
+      const statVector=(statStart>=0 && statStart+10<=data.length) ? Array.from({length:10},(_,i)=>decodedByte(data,statStart+i)) : null;
+      occurrences.push({
+        fullName:full,
+        first:first.text,
+        last:last.text,
+        nameOffset:off,
+        nameEnd:last.next,
+        countOffset,
+        effectCount:count,
+        statStart,
+        statVector,
+        juice
+      });
+      off=last.next-1;
+
+      // In every controlled campaign, the later duplicate of the customized Franchise
+      // marks the end of the active roster-copy sequence we care about.
+      if (occurrences.length>=20) {
+        const prev=occurrences.slice(0,-1).find(p=>p.fullName===full);
+        if (prev) break;
+      }
+    }
+
+    const groups=new Map();
+    for (const o of occurrences) {
+      if (!groups.has(o.fullName)) groups.set(o.fullName,[]);
+      groups.get(o.fullName).push(o);
+    }
+
+    const players=[];
+    for (const [name, occs] of groups) {
+      const first=occs[0];
+      const anyJuice=occs.find(o=>o.juice)?.juice || null;
+      players.push({
+        fullName:name,
+        first:first.first,
+        last:first.last,
+        occurrenceCount:occs.length,
+        occurrences:occs,
+        nameOffset:first.nameOffset,
+        countOffset:first.countOffset,
+        effectCount:first.effectCount,
+        juice:anyJuice,
+        insertSupported:(occs.length===1 || occs.length===2) && !anyJuice,
+        statSupported:occs.every(o=>o.statVector && VISIBLE_STATS.every(st=>o.statVector[st.vectorIndex]>=0 && o.statVector[st.vectorIndex]<=100))
+      });
+    }
+    return players;
+  }
+
+  function analyze(data) {
+    if (data.length<0x300) throw new Error("File is too small to be a Blitz II BSAV0.SAV.");
+    const campaigns=[];
+    const used=new Set();
+
+    for (const prefixOffset of findAll(data,CAMPAIGN_ANCHOR)) {
+      const slot=nearestSlot(prefixOffset);
+      if (slot<0 || used.has(slot)) continue;
+      const markerCandidates=findAll(data,MARKER,prefixOffset+0x5E00,Math.min(data.length,prefixOffset+0x6300));
+      if (!markerCandidates.length) continue;
+      const expectedMarker=prefixOffset+0x601C;
+      markerCandidates.sort((a,b)=>Math.abs(a-expectedMarker)-Math.abs(b-expectedMarker));
+      const markerOffset=markerCandidates[0];
+
+      const positiveCashOffset=prefixOffset+POSITIVE_CASH_REL;
+      const spent1Offset=positiveCashOffset+3;
+      const negativeCashOffset=markerOffset-8;
+      const spent2Offset=markerOffset-4;
+      const summaryOffset=SUMMARY_CASH_BASE+slot*SUMMARY_STRIDE;
+      const globalOffset=GLOBAL_CASH_BASE+slot*4;
+
+      const cashA=decodedU24(data,positiveCashOffset);
+      const spentA=decodedU32(data,spent1Offset);
+      const cashB=-decodedI32(data,negativeCashOffset);
+      const spentB=decodedU32(data,spent2Offset);
+      const summaryCash=readU32BE(data,summaryOffset);
+      const globalCash=readU32BE(data,globalOffset);
+
+      const selectorOffset=prefixOffset-0x25;
+      const teamRiskOffset=prefixOffset-0x15;
+      const juiceId=decodedByte(data,selectorOffset);
+      const teamRisk=decodedByte(data,teamRiskOffset);
+
+      const rosterEnd=ROSTER_END_BASE+slot*SLOT_STRIDE;
+      const rosterCandidates=findAll(data,ROSTER_SIG,Math.max(0,prefixOffset+0x5000),Math.min(data.length,rosterEnd));
+      const rosterSig=rosterCandidates.length ? rosterCandidates[0] : -1;
+      const paddingSafe=rosterEnd<=data.length && rosterEnd>=14 && Array.from(data.slice(rosterEnd-14,rosterEnd)).every(b=>b===0x3A);
+      const players=rosterSig>=0 ? parsePlayers(data,rosterSig,rosterEnd) : [];
+
+      campaigns.push({
+        slot:slot+1, slotIndex:slot, prefixOffset, markerOffset,
+        positiveCashOffset, spent1Offset, negativeCashOffset, spent2Offset, summaryOffset, globalOffset,
+        currentCash:cashA, spent:spentA,
+        consistent:cashA===cashB && cashA===summaryCash && cashA===globalCash && spentA===spentB,
+        selectorOffset, juiceId, teamRiskOffset, teamRisk,
+        rosterSig, rosterEnd, paddingSafe, players,
+        structuralInsertSupported:rosterSig>=0 && paddingSafe && rosterSig+8<rosterEnd
+      });
+      used.add(slot);
+    }
+
+    campaigns.sort((a,b)=>a.slot-b.slot);
+    const storedCrc=readU32BE(data,0x250);
+    const calculatedCrc=crc32BigInit0(data);
+    return {campaigns,storedCrc,calculatedCrc,crcValid:storedCrc===calculatedCrc};
+  }
+
+  function juiceName(id) { return JUICE_BY_ID.get(id)?.name || `Unknown (${id})`; }
+  function titleName(s) { return s.toLowerCase().replace(/(^|[ \-'])[a-z]/g,m=>m.toUpperCase()); }
+  function money(n) { return "$"+n.toLocaleString("en-US"); }
+  function hex32(n) { return "0x"+(n>>>0).toString(16).toUpperCase().padStart(8,"0"); }
+
+  function parseCash(text) {
+    const cleaned=text.trim().replace(/[$,\s]/g,"");
+    if (!/^\d+$/.test(cleaned)) throw new Error("Enter a whole-dollar cash amount.");
+    const v=Number(cleaned);
+    if (!Number.isSafeInteger(v)||v<0||v>MAX_CASH) throw new Error("Cash must be between $0 and $16,777,215.");
+    return v;
+  }
+
+  function patchCashCampaign(out,c,target) {
+    writeU32BE(out,c.summaryOffset,target);
+    writeU32BE(out,c.globalOffset,target);
+    const p=new Uint8Array(3); writeU24BE(p,0,target);
+    for(let i=0;i<3;i++) out[c.positiveCashOffset+i]=p[i]^0x3A;
+    const neg=(-target)>>>0;
+    writeDecodedU32(out,c.negativeCashOffset,neg);
+  }
+
+  function validRecordForPlayer(data,player) {
+    for (const o of player.occurrences) {
+      const r=readJuiceRecord(data,o.nameOffset-14);
+      if (r) return r;
+    }
+    return null;
+  }
+
+  function insertOneZeroRiskJuiceCopy(out,slotIndex,playerName,drugId,juiceIndex) {
+    const a=analyze(out);
+    const c=a.campaigns.find(x=>x.slotIndex===slotIndex);
+    if (!c) throw new Error(`Campaign slot ${slotIndex+1} disappeared during patching.`);
+    if (!c.structuralInsertSupported) throw new Error(`Slot ${slotIndex+1}: structural insertion is not safe in this save.`);
+    const p=c.players.find(x=>x.fullName===playerName);
+    if (!p) throw new Error(`Slot ${slotIndex+1}: could not re-find ${playerName}.`);
+
+    const target=p.occurrences.find(o=>!o.juice);
+    if (!target) throw new Error(`${titleName(playerName)} has no remaining unjuiced player-state copy.`);
+    const nameOffset=target.nameOffset;
+    const countOffset=target.countOffset;
+    if (countOffset!==nameOffset-28) throw new Error(`${titleName(playerName)} has an unexpected unjuiced player structure.`);
+    const effectCount=decodedByte(out,countOffset);
+    if (effectCount<1||effectCount>32) throw new Error(`${titleName(playerName)} has an unexpected effect-count field.`);
+
+    const rosterSizeOffset=c.rosterSig+8;
+    const rosterSize=decodedByte(out,rosterSizeOffset);
+    if (rosterSize+14>255) throw new Error(`Slot ${slotIndex+1}: roster serialized-size byte would overflow.`);
+    if (c.rosterEnd-nameOffset<28) throw new Error(`Slot ${slotIndex+1}: not enough roster room for insertion.`);
+    for (let i=c.rosterEnd-14;i<c.rosterEnd;i++) if(out[i]!==0x3A) throw new Error(`Slot ${slotIndex+1}: trailing roster padding is not empty; insertion aborted.`);
+
+    out.copyWithin(nameOffset+14,nameOffset,c.rosterEnd-14);
+
+    const rec=[0x12,0x04,0x00,0x00,0x01,juiceIndex,0x00,0x00,0x00,drugId,0x00,0x00,0x00,0x00];
+    for(let i=0;i<14;i++) out[nameOffset+i]=rec[i]^0x3A;
+    writeDecodedByte(out,rosterSizeOffset,rosterSize+14);
+    writeDecodedByte(out,countOffset,effectCount+1);
+  }
+
+
+  function insertRawJuiceRecord(out,c,nameOffset,drugId,juiceIndex,risk=0) {
+    if (c.rosterEnd-nameOffset<28) throw new Error(`Slot ${c.slot}: not enough roster room for insertion.`);
+    for (let i=c.rosterEnd-14;i<c.rosterEnd;i++) if(out[i]!==0x3A) throw new Error(`Slot ${c.slot}: trailing roster padding is not empty; insertion aborted.`);
+    out.copyWithin(nameOffset+14,nameOffset,c.rosterEnd-14);
+    const rec=[0x12,0x04,0x00,0x00,0x01,juiceIndex,0x00,0x00,0x00,drugId,
+      (risk>>>24)&255,(risk>>>16)&255,(risk>>>8)&255,risk&255];
+    for(let i=0;i<14;i++) out[nameOffset+i]=rec[i]^0x3A;
+  }
+
+  function patchFranchiseSpecialFields(out,nameOffset,playerName) {
+    const specialCountOffset=nameOffset-50;
+    const refOffsets=[nameOffset-44,nameOffset-39,nameOffset-22,nameOffset-17];
+    const expected=[0x11,0x11,0x10,0x10];
+    const actual=refOffsets.map(o=>decodedByte(out,o));
+    if (decodedByte(out,specialCountOffset)!==3) {
+      throw new Error(`${titleName(playerName)} has an unexpected Franchise special-list count.`);
+    }
+    if (actual.some((v,i)=>v!==expected[i])) {
+      throw new Error(`${titleName(playerName)} has an unexpected Franchise special-list structure.`);
+    }
+    writeDecodedByte(out,specialCountOffset,4);
+    [0x10,0x10,0x11,0x11].forEach((v,i)=>writeDecodedByte(out,refOffsets[i],v));
+    return {specialCountOffset,refOffsets};
+  }
+
+  function insertZeroRiskJuiceFranchise(out,slotIndex,playerName,drugId,juiceIndex) {
+    let a=analyze(out);
+    let c=a.campaigns.find(x=>x.slotIndex===slotIndex);
+    if (!c) throw new Error(`Campaign slot ${slotIndex+1} disappeared during Franchise patching.`);
+    let p=c.players.find(x=>x.fullName===playerName);
+    if (!p || p.occurrenceCount!==2 || p.occurrences.some(o=>o.juice)) {
+      throw new Error(`${titleName(playerName)} is not a clean two-copy Franchise-style player.`);
+    }
+    if (!c.structuralInsertSupported) throw new Error(`Slot ${slotIndex+1}: structural insertion is not safe in this save.`);
+    for (let i=c.rosterEnd-28;i<c.rosterEnd;i++) if(out[i]!==0x3A) {
+      throw new Error(`Slot ${slotIndex+1}: 28 bytes of trailing roster padding are required for Franchise juicing.`);
+    }
+
+    const initialRosterSize=decodedByte(out,c.rosterSig+8);
+    if (initialRosterSize+14>255) throw new Error(`Slot ${slotIndex+1}: primary roster serialized-size byte would overflow.`);
+
+    // Native duplicated-Franchise behavior is NOT two ordinary insertions.
+    // Primary copy: +14 to primary roster size, +1 to Franchise special-list count,
+    // rotate the native internal references, leave the generic name-adjacent count unchanged.
+    const first=p.occurrences[0];
+    const firstGenericCount=first.effectCount;
+    patchFranchiseSpecialFields(out,first.nameOffset,playerName);
+    writeDecodedByte(out,c.rosterSig+8,initialRosterSize+14);
+    insertRawJuiceRecord(out,c,first.nameOffset,drugId,juiceIndex,0);
+
+    // First insertion shifts the secondary Franchise copy. Re-discover it.
+    a=analyze(out);
+    c=a.campaigns.find(x=>x.slotIndex===slotIndex);
+    p=c?.players.find(x=>x.fullName===playerName);
+    if (!p) throw new Error(`Could not re-find ${titleName(playerName)} after primary Franchise insertion.`);
+    const second=p.occurrences.find(o=>!o.juice);
+    if (!second) throw new Error(`Could not find the secondary unjuiced copy of ${titleName(playerName)}.`);
+
+    // Secondary copy has its own size byte at unjuiced name-51.
+    const secondarySizeOffset=second.nameOffset-51;
+    const secondarySize=decodedByte(out,secondarySizeOffset);
+    if (secondarySize+14>255) throw new Error(`Slot ${slotIndex+1}: secondary Franchise container size would overflow.`);
+    patchFranchiseSpecialFields(out,second.nameOffset,playerName);
+    writeDecodedByte(out,secondarySizeOffset,secondarySize+14);
+    insertRawJuiceRecord(out,c,second.nameOffset,drugId,juiceIndex,0);
+
+    // Strong verification against the native model.
+    const verify=analyze(out).campaigns.find(x=>x.slotIndex===slotIndex);
+    const vp=verify?.players.find(x=>x.fullName===playerName);
+    if (!vp || vp.occurrenceCount!==2) throw new Error(`Could not verify both Franchise copies of ${titleName(playerName)}.`);
+    if (decodedByte(out,verify.rosterSig+8)!==initialRosterSize+14) {
+      throw new Error(`Primary roster-size verification failed for ${titleName(playerName)}.`);
+    }
+    for (const o of vp.occurrences) {
+      if (!o.juice || o.juice.drugId!==drugId || o.juice.index!==juiceIndex || o.juice.risk!==0) {
+        throw new Error(`Franchise juice verification failed for ${titleName(playerName)}.`);
+      }
+      if (o.effectCount!==firstGenericCount) {
+        throw new Error(`Franchise generic effect-count changed unexpectedly for ${titleName(playerName)}.`);
+      }
+    }
+    return {playerName,drugId,juiceIndex,copiesInserted:2};
+  }
+
+  function insertZeroRiskJuice(out,slotIndex,playerName,drugId) {
+    const a=analyze(out);
+    const c=a.campaigns.find(x=>x.slotIndex===slotIndex);
+    if (!c) throw new Error(`Campaign slot ${slotIndex+1} disappeared during patching.`);
+    if (!c.structuralInsertSupported) throw new Error(`Slot ${slotIndex+1}: structural insertion is not safe in this save.`);
+    const p=c.players.find(x=>x.fullName===playerName);
+    if (!p) throw new Error(`Slot ${slotIndex+1}: could not re-find ${playerName}.`);
+    if (p.occurrences.some(o=>o.juice)) throw new Error(`${titleName(playerName)} is already juiced or has a partially juiced duplicate record.`);
+    if (p.occurrenceCount!==1 && p.occurrenceCount!==2) throw new Error(`${titleName(playerName)} has ${p.occurrenceCount} serialized player records; only normal single-copy and proven two-copy Franchise-style players are supported.`);
+    if (!JUICE_BY_ID.has(drugId)) throw new Error(`Slot ${slotIndex+1}: choose a recognized Juice of the Week before inserting.`);
+
+    const currentlyJuiced=c.players.filter(x=>x.juice).length;
+    if (currentlyJuiced>=MAX_NORMAL_JUICED) throw new Error(`Slot ${slotIndex+1} already has ${currentlyJuiced} juiced players.`);
+
+    const usedIndexes=new Set(c.players.filter(x=>x.juice).map(x=>x.juice.index));
+    let juiceIndex=-1;
+    for(let i=0;i<MAX_NORMAL_JUICED;i++) if(!usedIndexes.has(i)){juiceIndex=i;break;}
+    if (juiceIndex<0) throw new Error(`Slot ${slotIndex+1}: no free normal juice slot index remains.`);
+
+    if (p.occurrenceCount===2) {
+      return insertZeroRiskJuiceFranchise(out,slotIndex,playerName,drugId,juiceIndex);
+    }
+
+    // Ordinary one-copy player: preserve the already field-tested v1.1 insertion path.
+    insertOneZeroRiskJuiceCopy(out,slotIndex,playerName,drugId,juiceIndex);
+
+    const verify=analyze(out).campaigns.find(x=>x.slotIndex===slotIndex);
+    const vp=verify?.players.find(x=>x.fullName===playerName);
+    if (!vp || vp.occurrenceCount!==1 || !vp.occurrences[0].juice ||
+        vp.occurrences[0].juice.drugId!==drugId || vp.occurrences[0].juice.index!==juiceIndex ||
+        vp.occurrences[0].juice.risk!==0) {
+      throw new Error(`Juice verification failed for ${titleName(playerName)}.`);
+    }
+    return {playerName,drugId,juiceIndex,copiesInserted:1};
+  }
+
+  function zeroAllExistingJuiceRisk(out,slotIndex) {
+    const a=analyze(out);
+    const c=a.campaigns.find(x=>x.slotIndex===slotIndex);
+    if (!c) throw new Error(`Missing slot ${slotIndex+1}.`);
+    let changed=0;
+    for (const p of c.players) {
+      for (const o of p.occurrences) {
+        const r=readJuiceRecord(out,o.nameOffset-14);
+        if (!r) continue;
+        writeDecodedU32(out,r.offset+10,0);
+        changed++;
+      }
+    }
+    writeDecodedByte(out,c.teamRiskOffset,0);
+    return changed;
+  }
+
+  function juiceDescription(id) {
+    const j=JUICE_BY_ID.get(id);
+    if (!j) return `Unknown or uninitialized Juice of the Week value (${id}). Let the week initialize in-game before forcing a drug.`;
+    return `<strong>${escapeHtml(j.name)}</strong> — ${escapeHtml(j.effect)} <span class="muted">Normal in-game price: ${money(j.cost)}.</span>`;
+  }
+
+  function render(a) {
+    campaignsEl.innerHTML="";
+    buildSummary.classList.add("hidden");
+    if (!a.campaigns.length) {
+      status.className="status bad";
+      status.textContent="No recognized Blitz II campaign structures were found.";
+      buildBtn.disabled=true; return;
+    }
+
+    for (const c of a.campaigns) {
+      const card=document.createElement("section");
+      card.className="panel campaign";
+      card.dataset.slot=String(c.slotIndex);
+
+      const juicedCount=c.players.filter(p=>p.juice).length;
+      const currentJuice=JUICE_BY_ID.get(c.juiceId);
+      const options=JUICES.map(j=>`<option value="${j.id}" ${j.id===c.juiceId?"selected":""}>${j.name}</option>`).join("");
+      const unknown=currentJuice?"":`<option value="${c.juiceId}" selected>Unknown / uninitialized (${c.juiceId})</option>`;
+
+      card.innerHTML=`
+        <div class="campaign-head">
+          <div><h2>Campaign Slot ${c.slot}</h2><div class="metrics">
+            <span>Cash <strong>${money(c.currentCash)}</strong></span>
+            <span>Spent <strong>${money(c.spent)}</strong></span>
+            <span>Team Risk <strong>${c.teamRisk}</strong></span>
+            <span>Roster <strong>${c.players.length}</strong> unique names</span>
+            <span>Juiced <strong>${juicedCount}/${MAX_NORMAL_JUICED}</strong></span>
+          </div></div>
+          <span class="badge ${c.consistent?"good":"warn"}">${c.consistent?"Money copies consistent":"Money mismatch"}</span>
+        </div>
+        <div class="campaign-grid">
+          <div class="subpanel">
+            <h3>Campaign controls</h3>
+            <div class="money-edit">
+              <div class="checkline" style="margin-top:0">
+                <input id="cash-enable-${c.slotIndex}" class="cashEnable" data-slot="${c.slotIndex}" type="checkbox">
+                <label for="cash-enable-${c.slotIndex}">Edit current cash for this campaign</label>
+              </div>
+              <label for="cash-${c.slotIndex}">Target cash (0 to 16,777,215)</label>
+              <input id="cash-${c.slotIndex}" class="cashTarget" data-slot="${c.slotIndex}" type="text" inputmode="numeric" value="${c.currentCash.toLocaleString("en-US")}" disabled>
+              <p class="small muted">Money spent is preserved. Juice insertion still does not deduct the drug cost.</p>
+            </div>
+            <div class="field" style="margin-top:16px">
+              <label for="juice-${c.slotIndex}">Juice of the Week</label>
+              <select id="juice-${c.slotIndex}" class="juiceSelect" data-slot="${c.slotIndex}">${unknown}${options}</select>
+              <div id="juice-info-${c.slotIndex}" class="juice-info small">${juiceDescription(c.juiceId)}</div>
+            </div>
+            <div class="checkline">
+              <input id="zero-${c.slotIndex}" class="zeroRisk" data-slot="${c.slotIndex}" type="checkbox">
+              <label for="zero-${c.slotIndex}">Zero risk on all existing juiced-player records</label>
+            </div>
+            <p class="small muted">New editor-inserted juice records always use risk <strong>0</strong>. Changing Juice of the Week does not rewrite players who are already juiced.</p>
+            <p class="small ${c.structuralInsertSupported?"good":"warn"}">${c.structuralInsertSupported?"Structural insertion safety checks passed for this slot.":"Structural insertion disabled: the roster signature/padding did not pass safety checks."}</p>
+          </div>
+          <div class="subpanel">
+            <div class="campaign-head"><h3>Roster</h3><span class="badge">Juice + custom TGH</span></div>
+            <p class="small muted"><strong>Juice</strong> adds the selected weekly drug with zero risk. <strong>Apply TGH effect</strong> is separate: it changes one random mapped visible stat modifier by +5 and adds no juice record.</p>
+            
+        <div class="row-actions" style="margin:8px 0 12px;display:flex;gap:8px;flex-wrap:wrap;">
+          <button type="button" class="secondary" data-select-all-tgh="${c.slotIndex}">Select All TGH Effects</button>
+        </div>
+
+        <div class="roster">${c.players.length?c.players.map((p,idx)=>{
+              const j=p.juice;
+              let meta="Not juiced";
+              let klass="";
+              if (j) { meta=`${juiceName(j.drugId)} · risk ${j.risk} · juice slot ${j.index}`; klass="good"; }
+              else if (p.occurrenceCount===2) { meta="Franchise-style two-copy player — Juice will be mirrored to both player-state copies"; klass="good"; }
+              else if (p.occurrenceCount>2) { meta=`${p.occurrenceCount} serialized player records — juice insertion unsupported`; klass="warn"; }
+              else if (!c.structuralInsertSupported) { meta="Juice insertion unavailable for this campaign"; klass="warn"; }
+              const juiceDisabled=!!j || p.occurrenceCount>2 || !c.structuralInsertSupported;
+              const tghDisabled=!p.statSupported;
+              const id=`p-${c.slotIndex}-${idx}`;
+              const tid=`tgh-${c.slotIndex}-${idx}`;
+              return `<div class="player"><div class="player-top"><span class="player-name">${escapeHtml(titleName(p.fullName))}</span></div><div class="player-meta ${klass}">${escapeHtml(meta)}</div><div class="player-actions"><label class="mini-check" for="${id}"><input class="playerPick" data-slot="${c.slotIndex}" data-name="${escapeHtmlAttr(p.fullName)}" id="${id}" type="checkbox" ${juiceDisabled?"disabled":""}> Juice</label><label class="mini-check" for="${tid}"><input class="tghPick" data-slot="${c.slotIndex}" data-name="${escapeHtmlAttr(p.fullName)}" id="${tid}" type="checkbox" ${tghDisabled?"disabled":""}> Apply effects of TGH?</label></div>${tghDisabled?"<div class='player-meta warn'>Stat modifier block not safe to edit for this record.</div>":""}</div>`;
+            }).join(""):"<div class='warn'>Roster names could not be parsed for this campaign.</div>"}</div>
+          </div>
+        </div>`;
+      campaignsEl.appendChild(card);
+    }
+
+    document.querySelectorAll(".cashEnable").forEach(box=>box.addEventListener("change",()=>{
+      const input=document.querySelector(`.cashTarget[data-slot="${box.dataset.slot}"]`);
+      if (input) input.disabled=!box.checked;
+    }));
+    document.querySelectorAll(".juiceSelect").forEach(sel=>sel.addEventListener("change",()=>{
+      const info=document.getElementById(`juice-info-${sel.dataset.slot}`);
+      if (info) info.innerHTML=juiceDescription(Number(sel.value));
+    }));
+
+    buildBtn.disabled=false;
+    status.className="status good";
+    status.textContent=`Detected ${a.campaigns.length} occupied campaign slot${a.campaigns.length===1?"":"s"}. Configure each campaign below, then build a new BSAV0.SAV.`;
+    crcLine.innerHTML=`Blitz CRC: stored <code>${hex32(a.storedCrc)}</code>, calculated <code>${hex32(a.calculatedCrc)}</code> — <span class="${a.crcValid?"good":"warn"}">${a.crcValid?"valid":"does not match"}</span>.`;
+  }
+
+  function escapeHtml(s) { return s.replace(/[&<>"']/g,ch=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#39;"}[ch])); }
+  function escapeHtmlAttr(s) { return escapeHtml(s); }
+
+  function collectSettings() {
+    const settings=new Map();
+    for (const c of initialAnalysis.campaigns) {
+      const select=document.querySelector(`.juiceSelect[data-slot="${c.slotIndex}"]`);
+      const zero=document.querySelector(`.zeroRisk[data-slot="${c.slotIndex}"]`);
+      const cashEnable=document.querySelector(`.cashEnable[data-slot="${c.slotIndex}"]`);
+      const cashTarget=document.querySelector(`.cashTarget[data-slot="${c.slotIndex}"]`);
+      const picked=Array.from(document.querySelectorAll(`.playerPick[data-slot="${c.slotIndex}"]:checked`)).map(x=>x.dataset.name);
+      const tgh=Array.from(document.querySelectorAll(`.tghPick[data-slot="${c.slotIndex}"]:checked`)).map(x=>x.dataset.name);
+      settings.set(c.slotIndex,{
+        juiceId:Number(select.value),
+        zeroRisk:zero.checked,
+        picked,
+        tgh,
+        cashEnabled:cashEnable.checked,
+        cashTarget:cashEnable.checked?parseCash(cashTarget.value):null
+      });
+    }
+    return settings;
+  }
+
+  function randomChoice(items) {
+    if (!items.length) return null;
+    if (globalThis.crypto && typeof globalThis.crypto.getRandomValues==="function") {
+      const max=Math.floor(0x100000000/items.length)*items.length;
+      const buf=new Uint32Array(1);
+      let n;
+      do { globalThis.crypto.getRandomValues(buf); n=buf[0]; } while (n>=max);
+      return items[n%items.length];
+    }
+    return items[Math.floor(Math.random()*items.length)];
+  }
+
+  function applyCustomTghEffect(out,slotIndex,playerName) {
+    const a=analyze(out);
+    const c=a.campaigns.find(x=>x.slotIndex===slotIndex);
+    if (!c) throw new Error(`Missing slot ${slotIndex+1}.`);
+    const p=c.players.find(x=>x.fullName===playerName);
+    if (!p) throw new Error(`Slot ${slotIndex+1}: could not re-find ${playerName} for TGH effect.`);
+    if (!p.statSupported) throw new Error(`${titleName(playerName)} does not have a safe mapped stat block.`);
+
+    const firstVector=p.occurrences[0].statVector;
+    for (const o of p.occurrences) {
+      for (const st of VISIBLE_STATS) {
+        if (o.statVector[st.vectorIndex]!==firstVector[st.vectorIndex]) {
+          throw new Error(`${titleName(playerName)} has inconsistent duplicate stat modifiers; TGH effect aborted.`);
+        }
+      }
+    }
+
+    const fullFive=VISIBLE_STATS.filter(st=>firstVector[st.vectorIndex]<=95);
+    const notMaxed=VISIBLE_STATS.filter(st=>firstVector[st.vectorIndex]<100);
+    const pool=fullFive.length?fullFive:notMaxed;
+    if (!pool.length) return {playerName,slotIndex,statName:null,before:100,after:100,delta:0};
+    const chosen=randomChoice(pool);
+    const before=firstVector[chosen.vectorIndex];
+    const after=Math.min(100,before+5);
+    for (const o of p.occurrences) writeDecodedByte(out,o.statStart+chosen.vectorIndex,after);
+    return {playerName,slotIndex,statName:chosen.name,before,after,delta:after-before};
+  }
+
+  function buildOutput() {
+    if (!originalBytes || !initialAnalysis) return;
+    const out=new Uint8Array(originalBytes);
+    const settings=collectSettings();
+    const inserted=[];
+    const tghResults=[];
+
+    // Set Juice of the Week first so any new juice records use the selected enum.
+    let current=analyze(out);
+    for (const c of current.campaigns) {
+      const s=settings.get(c.slotIndex);
+      if (!s) continue;
+      if (!JUICE_BY_ID.has(s.juiceId)) {
+        if (s.picked.length) throw new Error(`Slot ${c.slot}: choose a recognized Juice of the Week before juicing a player.`);
+      } else {
+        writeDecodedByte(out,c.selectorOffset,s.juiceId);
+      }
+    }
+
+    // Structural juice insertions. Re-analyze before every insert because offsets shift.
+    for (const [slotIndex,s] of settings) {
+      let c=analyze(out).campaigns.find(x=>x.slotIndex===slotIndex);
+      if (!c) continue;
+      const existing=c.players.filter(p=>p.juice).length;
+      if (existing+s.picked.length>MAX_NORMAL_JUICED) {
+        throw new Error(`Slot ${slotIndex+1}: ${existing} players are already juiced and ${s.picked.length} more are selected. v1.3 caps the total at ${MAX_NORMAL_JUICED}.`);
+      }
+      for (const name of s.picked) inserted.push(insertZeroRiskJuice(out,slotIndex,name,s.juiceId));
+    }
+
+    // Existing-risk cleanup includes any new records, though new records already carry zero risk.
+    for (const [slotIndex,s] of settings) if (s.zeroRisk) zeroAllExistingJuiceRisk(out,slotIndex);
+
+    // Custom TGH is intentionally independent from juicing and the weekly selector.
+    // Apply after insertions so all current player offsets are re-discovered correctly.
+    for (const [slotIndex,s] of settings) for (const name of s.tgh) {
+      tghResults.push(applyCustomTghEffect(out,slotIndex,name));
+    }
+
+    // Per-campaign money edits are applied last.
+    current=analyze(out);
+    for (const c of current.campaigns) {
+      const s=settings.get(c.slotIndex);
+      if (s?.cashEnabled) patchCashCampaign(out,c,s.cashTarget);
+    }
+
+    const crc=crc32BigInit0(out);
+    writeU32BE(out,0x250,crc);
+
+    const verify=analyze(out);
+    if (!verify.crcValid) throw new Error("CRC verification failed after patching.");
+    if (verify.campaigns.length!==initialAnalysis.campaigns.length) throw new Error("Campaign-count verification failed after patching.");
+
+    for (const [slotIndex,s] of settings) {
+      const c=verify.campaigns.find(x=>x.slotIndex===slotIndex);
+      if (!c) continue;
+      if (JUICE_BY_ID.has(s.juiceId) && c.juiceId!==s.juiceId) throw new Error(`Juice of the Week verification failed for slot ${c.slot}.`);
+      if (s.cashEnabled && (c.currentCash!==s.cashTarget || !c.consistent)) throw new Error(`Money verification failed for slot ${c.slot}.`);
+      for (const name of s.picked) {
+        const p=c.players.find(x=>x.fullName===name);
+        if (!p || !p.occurrences.length) throw new Error(`Verification lost inserted player ${titleName(name)} in slot ${slotIndex+1}.`);
+        for (const o of p.occurrences) {
+          if (!o.juice || o.juice.drugId!==s.juiceId || o.juice.risk!==0) throw new Error(`Verification failed for a serialized copy of ${titleName(name)} in slot ${slotIndex+1}.`);
+        }
+      }
+      if (s.zeroRisk) {
+        if (c.teamRisk!==0) throw new Error(`Slot ${slotIndex+1}: Team Risk did not verify as zero.`);
+        for (const p of c.players) if (p.juice && p.juice.risk!==0) throw new Error(`Slot ${slotIndex+1}: a visible juice record still has nonzero risk.`);
+      }
+    }
+
+    for (const r of tghResults) {
+      if (!r.statName || r.delta===0) continue;
+      const c=verify.campaigns.find(x=>x.slotIndex===r.slotIndex);
+      const p=c?.players.find(x=>x.fullName===r.playerName);
+      if (!p) throw new Error(`TGH verification lost ${titleName(r.playerName)}.`);
+      const st=VISIBLE_STATS.find(x=>x.name===r.statName);
+      if (!st) throw new Error("TGH verification lost the chosen stat mapping.");
+      for (const o of p.occurrences) if (o.statVector[st.vectorIndex]!==r.after) throw new Error(`TGH verification failed for ${titleName(r.playerName)} ${r.statName}.`);
+    }
+
+    return {bytes:out,verify,crc,insertedCount:Array.from(settings.values()).reduce((n,s)=>n+s.picked.length,0),insertedCopies:inserted.reduce((n,r)=>n+r.copiesInserted,0),tghResults,settings};
+  }
+
+  fileInput.addEventListener("change",async()=>{
+    buildBtn.disabled=true; originalBytes=null; initialAnalysis=null; campaignsEl.innerHTML=""; buildSummary.classList.add("hidden"); crcLine.textContent="";
+    const file=fileInput.files&&fileInput.files[0];
+    if(!file){status.className="status muted";status.textContent="Choose a decrypted save file to analyze it.";return;}
+    try {
+      originalBytes=new Uint8Array(await file.arrayBuffer());
+      initialAnalysis=analyze(originalBytes);
+      render(initialAnalysis);
+    } catch(err) {
+      status.className="status bad"; status.textContent=err instanceof Error?err.message:String(err);
+    }
+  });
+
+  buildBtn.addEventListener("click",()=>{
+    try {
+      const result=buildOutput();
+      const blob=new Blob([result.bytes],{type:"application/octet-stream"});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement("a");
+      a.href=url; a.download="BSAV0.SAV"; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(()=>URL.revokeObjectURL(url),1000);
+      status.className="status good";
+      status.textContent=`Built verified BSAV0.SAV. New juiced players: ${result.insertedCount} (${result.insertedCopies} serialized juice record${result.insertedCopies===1?"":"s"}). Custom TGH effects: ${result.tghResults.length}. New CRC: ${hex32(result.crc)}. Re-encrypt/rebuild with Bruteforce before copying to PS3.`;
+      const lines=[];
+      for (const r of result.tghResults) {
+        if (!r.statName || r.delta===0) lines.push(`<li>Slot ${r.slotIndex+1}: ${escapeHtml(titleName(r.playerName))} — all mapped save-side stat modifiers already at 100; no TGH change made.</li>`);
+        else lines.push(`<li>Slot ${r.slotIndex+1}: ${escapeHtml(titleName(r.playerName))} — ${escapeHtml(r.statName)} modifier ${r.before} → ${r.after} (+${r.delta}).</li>`);
+      }
+      for (const [slotIndex,s] of result.settings) if (s.cashEnabled) lines.push(`<li>Slot ${slotIndex+1}: cash set to ${money(s.cashTarget)}.</li>`);
+      if (result.insertedCount) lines.push(`<li>${result.insertedCount} player${result.insertedCount===1?"":"s"} juiced with ${result.insertedCopies} zero-risk serialized record${result.insertedCopies===1?"":"s"}.</li>`);
+      buildSummaryBody.innerHTML=lines.length?`<ul>${lines.join("")}</ul>`:"No optional edits were selected beyond the weekly Juice of the Week values.";
+      buildSummary.classList.remove("hidden");
+    } catch(err) {
+      status.className="status bad"; status.textContent=err instanceof Error?err.message:String(err);
+    }
+  });
+})();
+
+  function selectAllTghForCampaign(slotIndex, checked=true) {
+    const boxes = document.querySelectorAll(`.tghPick[data-slot="${slotIndex}"]`);
+    for (const box of boxes) {
+      if (!box.disabled) box.checked = checked;
+    }
+  }
+
+
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-select-all-tgh]");
+    if (!button) return;
+    const campaignIndex = button.getAttribute("data-select-all-tgh");
+    selectAllTghForCampaign(campaignIndex, true);
+  });
+
+</script>
+</body>
+</html>

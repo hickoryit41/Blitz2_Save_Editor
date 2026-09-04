@@ -1,82 +1,66 @@
-BLITZ: THE LEAGUE II MONEY TOOL v1.0 — START HERE
-====================================================
+BLITZ: THE LEAGUE II PS3 SAVE EDITOR v1.3
+=========================================================
 
-This is the short version. Read README.md if anything below is unfamiliar.
+Verified format:
+BLUS30203 (North American PS3)
 
-WHAT THIS DOES
+MAIN FILE:
+Blitz2SaveEditor.html
+
+QUICK WORKFLOW
 --------------
-Changes CURRENT CASH in every occupied campaign slot in a decrypted PS3
-BSAV0.SAV file, then repairs Blitz: The League II's internal checksum.
 
-Verified game version:
-    North America / BLUS30203
+1. Back up your entire PS3 save folder.
 
-Tested amount:
-    $8,500,000 per occupied campaign
+2. Copy the save from PS3 to USB.
 
-Observed maximum supported cash value:
-    $16,777,215
+3. On Windows, open the save in Bruteforce Save Data.
 
-THIS DOES NOT JAILBREAK YOUR PS3.
-The intended workflow uses a normal stock PS3, a FAT32 USB drive, a Windows PC,
-Bruteforce Save Data, and this offline editor.
+4. Decrypt the save / decrypt all.
 
-THE 60-SECOND WORKFLOW
-----------------------
-1. PS3: copy your Blitz save to USB using Saved Data Utility (PS3).
+5. Open Blitz2SaveEditor.html in a desktop browser.
 
-2. PC: COPY THE ENTIRE SAVE FOLDER SOMEWHERE SAFE. Make a second working copy.
-   Never modify your only copy.
+6. Load the decrypted BSAV0.SAV.
 
-3. Bruteforce Save Data 4.7.5:
-       Select the Blitz save
-       Decrypt PFD > Decrypt All > Yes
+7. Configure each campaign independently:
+   - optional cash amount;
+   - Juice of the Week;
+   - optional zero-risk cleanup;
+   - Juice checkbox for ordinary players;
+   - optional "Apply effects of TGH?" checkbox.
 
-4. Double-click:
-       Blitz2MoneyTool.html
+8. Click:
+   Build patched BSAV0.SAV
 
-5. Choose the DECRYPTED:
-       BSAV0.SAV
+9. Replace the decrypted working BSAV0.SAV with the generated file.
 
-6. Confirm the campaign slots shown by the tool make sense.
+10. In Bruteforce:
+    - update PFD / full update;
+    - encrypt decrypted files if needed;
+    - verify PFD;
+    - rebuild full.
 
-7. Enter your target cash amount and click:
-       Patch all detected campaigns
+11. Copy the finished save back to PS3 through normal Saved Data Utility.
 
-8. Your browser downloads a NEW file named:
-       BSAV0.SAV
+IMPORTANT
+---------
 
-   Replace the decrypted BSAV0.SAV in your WORKING save folder with this file.
-   Do not touch your backup.
+- New editor-created juice records use zero Team Risk.
+- Juice insertion remains capped at three players.
+- Franchise juicing is enabled experimentally and mirrors the juice record into both real Franchise player-state copies.
+- "Apply effects of TGH?" is NOT juicing.
+  It only adds +5 to one random mapped visible stat modifier.
+- You can use the TGH effect and juicing independently.
+- Native TGH did not produce its advertised +5 in the project's controlled
+  development-console tests. We do NOT know whether that is universal.
+- Always keep an untouched backup.
 
-9. Bruteforce:
-       Update PFD > Full update > Yes to encrypt files
-       Encrypt PFD > Encrypt decrypted files    (if this option is available)
-       Verify PFD                               (make sure there are no errors)
-       Rebuild > Rebuild Full
+The editor works entirely offline.
 
-10. Copy the finished save folder to:
-        USB:\PS3\SAVEDATA\
+TGH SELECT-ALL
+--------------
 
-11. PS3:
-        Game
-        > Saved Data Utility (PS3)
-        > USB Device
-        > Blitz: The League II
-        > Triangle
-        > Copy
+Each campaign has a "Select All TGH Effects" button that checks the custom
+TGH-effect option for every detected roster player, including backups.
 
-12. Start Blitz. Load each campaign. Buy something. Save. Quit. Reload.
-    Only after that works should you consider the modified save proven-good.
-
-IF THE TOOL SAYS IT FOUND ZERO CAMPAIGNS
----------------------------------------
-STOP. Do not force anything.
-
-Most likely causes:
-- You selected an encrypted BSAV0.SAV instead of the decrypted one.
-- You selected the wrong file.
-- The save is from an untested region/version or has a different structure.
-- The save itself is damaged.
-
-See README.md for Bruteforce setup and troubleshooting.
+This does not select anybody for Juice.

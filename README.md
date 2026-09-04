@@ -1,455 +1,523 @@
-# Blitz: The League II Money Tool v1.0
+# Blitz: The League II PS3 Save Editor v1.3
 
-Offline campaign-money editor for the PlayStation 3 version of **Blitz: The League II**.
+Offline save editor for the PlayStation 3 version of **Blitz: The League II**.
 
-## What it does
+Verified save format: **North American BLUS30203**.
 
-The tool opens a **decrypted** `BSAV0.SAV`, detects the occupied campaign slots, shows their current cash and money-spent values, changes current cash to the amount you choose, repairs all known duplicated/obfuscated cash fields, and rebuilds the game's internal checksum.
-
-It has been verified on the North American PS3 release **BLUS30203**. Other regions are currently **untested and unsupported** even if they happen to work.
-
-The editor is a single local HTML file. It contains no upload code, analytics, telemetry, remote scripts, or network requests. Selecting a save reads it locally in your browser. The only external link in the page is a help link that opens The Project Lounge guide if you click it.
-
-## What it does NOT do
-
-This tool does **not** decrypt Sony's PS3 save encryption and does **not** rebuild/resign `PARAM.PFD`. You still need a PC save utility such as **Bruteforce Save Data 4.7.5** before and after using this editor.
-
-You do **not** need to jailbreak the PS3 for the workflow described here. A stock PS3 can copy the save to USB and copy the finished save back through the normal **Saved Data Utility (PS3)**.
-
----
-
-# Before you begin
-
-You need:
-
-- A PlayStation 3 and Blitz: The League II.
-- A USB storage device readable by the PS3. FAT32 is the simplest choice.
-- A Windows PC.
-- Bruteforce Save Data 4.7.5.
-- `Blitz2MoneyTool.html` from this release.
-- One backup you promise not to touch.
-
-**Seriously: make a backup.** Save editing is inherently experimental. Keep an untouched copy of the entire PS3 save folder, not just `BSAV0.SAV`.
-
-Bruteforce Save Data is old third-party software distributed outside normal app stores. Use the linked reference guide, keep antivirus protections enabled, and treat any third-party download as software you install/run at your own risk.
-
----
-
-# Part 1 — Copy your Blitz save from PS3 to USB
-
-1. Plug the USB drive into the PS3.
-2. On the PS3 XMB, go to **Game**.
-3. Open **Saved Data Utility (PS3)**.
-4. Highlight **Blitz: The League II**.
-5. Press **Triangle**.
-6. Choose **Copy**.
-7. Choose the USB device.
-8. Wait for the copy to finish.
-9. Shut down/eject normally, then plug the USB into the Windows PC.
-
-On the USB, PS3 save data normally lives under:
+The normal interface is the self-contained file:
 
 ```text
-USB:\PS3\SAVEDATA\
+Blitz2SaveEditor.html
 ```
 
-The verified North American Blitz save uses title ID:
+Open it in a modern desktop browser. No web server or internet connection is required.
+
+
+## Reverse-engineering discoveries
+
+The project now has a dedicated research log:
+
+**`DISCOVERIES.md`**
+
+It separates proven save-format/gameplay findings from strong inferences and open hypotheses. It includes the money format, Juice of the Week enums, Team Risk behavior, 14-byte player juice records, player stat mapping, native TGH testing, the custom-TGH validation, Franchise's duplicated player-state records, and remaining questions such as the unknown player modifier and possible custom two-way players.
+
+
+## v1.3 public release
+
+v1.3 is the first public release since v1.0. The v1.1 through v1.2.5 builds were internal development iterations used to reverse-engineer and validate the expanded editor.
+
+v1.3 includes:
+
+- independent per-campaign cash editing;
+- Juice of the Week editing with effect and price descriptions;
+- dynamic roster detection;
+- zero-risk cleanup for existing juice records;
+- arbitrary zero-risk juice insertion for ordinary roster players;
+- stock-PS3 validated native-style Franchise juicing across both real player-state copies;
+- custom TGH +5 stat effects;
+- Select All TGH Effects for every detected roster player, including backups;
+- internal Blitz CRC repair and output verification;
+- completely offline/local operation.
+
+### Final acceptance tests
+
+**Raiders — Franchise juicing**
+
+The corrected duplicated-Franchise serialization passed the complete stock-PS3 cycle:
+
+- save loaded normally;
+- Franchise appeared juiced normally;
+- Team Risk stayed at 0;
+- Mastaphene's gameplay effect worked;
+- the game completed normally;
+- save/reload worked;
+- the next week initialized normally;
+- the post-game save returned the temporary Franchise juice structures to normal.
+
+**Hawgs — Select All TGH Effects**
+
+The full-roster test selected all **43 detected logical roster players**, including backups. One duplicated player-state record caused **44 physical stat modifier writes**.
+
+Validation confirmed:
+
+- every selected logical player received the intended +5 save-side modifier;
+- duplicated player-state copies received matching updates;
+- no Hawgs juice records were created;
+- the save loaded normally;
+- the campaign remained healthy after save/reload;
+- the modifier changes persisted.
+
+## Internal v1.2.4 development changes
+
+### Native Franchise serialization fix
+
+The first editor-generated Franchise acceptance test on the Raiders softlocked while loading the campaign.
+
+The failure exposed an important mistake in the v1.2.1-v1.2.3 implementation: a duplicated Franchise player cannot be serialized as two ordinary player insertions.
+
+A controlled native pair (`BSAV0_NoJuice.SAV` -> `BSAV0_Juiced.SAV`) provides a clean duplicated-Franchise case in Slot 3. Reproducing the newly decoded native rules now generates the native Slot-3 roster **byte-for-byte with zero differences**.
+
+For a duplicated Franchise player, the native game:
+
+- inserts the same 14-byte juice record before both real player-state names;
+- increases the **primary roster size by only 14 bytes**, not 28;
+- increases a separate **secondary Franchise container size by 14 bytes** for the second copy;
+- leaves the generic name-adjacent Franchise count unchanged;
+- increments a Franchise-specific list count in each copy;
+- rotates four internal `0x10`/`0x11` references in each Franchise structure exactly as the native game does;
+- uses the same juice-slot index on both copies.
+
+v1.2.4 implements this native model with risk `0`.
+
+## What was new in v1.2.3
+
+### Select All TGH render bug fixed
+
+v1.2.2 introduced a JavaScript render-time error:
 
 ```text
-BLUS30203
+Campaign is not defined
 ```
 
----
+The save file was not the problem. The new Select All button referenced
+`campaign.index` even though the campaign-rendering scope uses `c`.
 
-# Part 2 — Make backups on the PC
+v1.2.3 fixes the button to use the campaign's existing `slotIndex` and
+simplifies Select All so it targets the already-existing per-player TGH
+checkboxes by their `data-slot` value.
 
-Do not work directly on the only USB copy.
+No save-format logic changed in this fix.
 
-A simple folder layout is:
+## What was new in v1.2.2
+
+### Select all custom TGH effects
+
+Each campaign now includes a **Select All TGH Effects** button.
+
+It checks **Apply effects of TGH?** for every detected roster player in that campaign, including backups.
+
+This does **not** select players for Juice and does not change Juice of the Week or Team Risk. It only saves you from manually checking every TGH-effect box.
+
+## What was new in v1.2.1
+
+### Franchise juicing enabled
+
+v1.2.1 removes the editor-side restriction that prevented juice insertion on Franchise-style duplicated player records.
+
+Native save analysis proved that when the game juices Franchise, it writes the same 14-byte juice effect to **both real Franchise player-state copies**, using the same drug and the same juice-slot index.
+
+The editor now mirrors that behavior:
+
+- Franchise counts as **one** player toward the normal three-player juicing limit.
+- The same zero-risk juice record is inserted into both real Franchise player-state copies.
+- The generic Franchise name-adjacent count is left unchanged, matching native serialization.
+- The primary roster grows by 14 bytes and the secondary Franchise container grows by 14 bytes.
+- Franchise-specific list counts and internal references are updated exactly as observed in the native save pair.
+- The unrelated Franchise-name/metadata occurrence is not touched.
+- Output verification requires every real Franchise player-state copy to contain the expected zero-risk record.
+
+This implementation reproduces native save behavior and has completed stock-PS3 gameplay, save/reload, and next-week transition validation.
+
+## What was new in v1.2
+
+- Cash is now editable **independently for each detected campaign** instead of using one global target.
+- The Juice of the Week selector now shows the drug's known gameplay effect and normal in-game price.
+- The v1.1 campaign-detection hotfix is integrated. The detector now uses the stable 14-byte campaign anchor instead of incorrectly treating two mutable campaign-state bytes as part of the signature.
+- Arbitrary zero-risk juice insertion is retained after successful stock-PS3 gameplay/save/week-transition testing.
+- The player progression/stat block has now been mapped for all nine visible ratings.
+- Added an experimental, completely separate **Apply effects of TGH?** option.
+- The custom TGH option does **not** add a juice record. It only adds +5 to one random mapped visible stat modifier.
+- Custom TGH and normal juicing can be used independently or together on the same player.
+- The custom TGH stat change is applied to all serialized copies of a duplicated Franchise-style player record, while juice-record insertion into duplicated Franchise records remains disabled.
+
+## Feature status
+
+### Stable / validated
+
+- Four-copy current-cash editing.
+- Per-campaign cash targets.
+- Internal Blitz CRC repair.
+- Juice of the Week detection and editing.
+- Roster-name detection from the save itself.
+- Existing juice-record detection.
+- Zeroing the per-player juice risk contribution.
+- Resetting campaign Team Risk.
+- Arbitrary juice-record insertion for unique ordinary player records.
+- Editor-created zero-risk juice records surviving gameplay, game save, week transition, and reload.
+- Editor-created Mastaphene producing its observed normal-stamina-drain prevention gameplay effect.
+- Custom **Apply effects of TGH?** successfully changing an ordinary player's selected displayed stat by +5 without juicing him.
+- Select All TGH Effects has been validated across a full detected 43-player roster, including backups and a duplicated player-state record.
+- Native-style editor-created Franchise juicing has completed gameplay, save/reload, and next-week transition validation on stock PS3.
+
+### Known limitations / future work
+
+- The save-side stat modifier map is proven, but the game's built-in base ratings are not yet decoded from the save.
+- Juice insertion remains capped at the normal in-game total of three **logical players**.
+- Franchise-style two-copy players are supported and stock-PS3 validated. Franchise counts as one juiced player while the editor writes matching native-style records to both real player-state copies.
+
+## TGH compatibility finding
+
+The game itself describes TGH as:
+
+> Permanently gain +5 in a random statistic.
+
+During controlled testing on the **stock PS3, BLUS30203 game copy, and disc used for this project**, native TGH could be selected and administered normally, but the advertised visible/persistent +5 could not be reproduced.
+
+Tests included:
+
+- TGH on an ordinary player who was not training.
+- TGH on Franchise while Franchise was not training.
+- TGH on an ordinary player who was simultaneously assigned normal Speed training.
+
+In the training test, the ordinary player received exactly the training increase predicted by the training UI and no additional visible +5. Save-file comparisons also showed the normal training modifier being written, while no analogous TGH +5 appeared in the mapped visible stat modifiers.
+
+**This project is not claiming that TGH is universally broken in every copy of Blitz: The League II.** We do not currently know whether the behavior is caused by:
+
+- the particular console;
+- game version or region;
+- the particular disc/copy;
+- some other game-state condition we have not identified;
+- or an actual bug in this release.
+
+Because the advertised native effect could not be reproduced on the development setup, v1.2 adds an optional custom implementation.
+
+## Custom "Apply effects of TGH?"
+
+This control is deliberately separate from juicing.
+
+Checking **Apply effects of TGH?** for a player:
+
+1. Does **not** add a juice record.
+2. Does **not** change the Juice of the Week.
+3. Does **not** change Team Risk.
+4. Randomly chooses one of the nine mapped visible player stats.
+5. Adds `+5` to that stat's persistent save-side modifier.
+6. Updates every serialized copy when the player has a duplicated Franchise-style record.
+
+You can therefore:
+
+- apply the custom TGH +5 without juicing the player;
+- juice a player without applying the custom TGH +5;
+- or do both.
+
+
+### Custom TGH validation
+
+A controlled v1.2 test applied the custom TGH effect to **Raiders N. Linker** without juicing him.
+
+The editor randomly selected **Strength**.
+
+Save comparison showed:
 
 ```text
-C:\Blitz2MoneyMod\
-├── Original\
-└── Working\
+Strength modifier: 0 -> 5
 ```
 
-1. Copy the **entire** PS3 save tree from the USB into `Original`.
-2. Copy `Original` again into `Working`.
-3. Never edit `Original`.
-4. Point Bruteforce at the copy under `Working`.
+with no juice record, Team Risk change, or unrelated player-data change.
 
-If anything goes wrong, delete the broken working copy and start again from `Original`.
-
----
-
-# Part 3 — Set up Bruteforce Save Data 4.7.5
-
-For the Bruteforce portion, this release follows the detailed Windows 10/11 walkthrough published by **The Project Lounge**:
-
-https://theprojectlounge.co.uk/how-to-share-and-mod-playstation-3-game-saves/
-
-That guide provides the Bruteforce 4.7.5 download link and screenshots. These are the important points for this Blitz workflow:
-
-1. Download **Bruteforce Save Data 4.7.5** using the link on the guide above.
-2. Extract the download with **Right-click > Extract All**.
-3. Use the included/prepared folder named approximately:
-
-   ```text
-   BruteforceSaveData_v4.7.5
-   ```
-
-4. **Do not run the included 4.7.4 installer on Windows 10/11 unless you have a specific reason.** The guide recommends using the prepared 4.7.5 folder directly because the older installer caused problems in its testing.
-5. Run:
-
-   ```text
-   BruteforceSaveData.exe
-   ```
-
-6. If Bruteforce shows a **Cheats Repository** update window, **DO NOT CLICK DOWNLOAD**. The guide warns that the downloaded repository data is currently in the wrong format and can stop Bruteforce from decrypting saves. Uncheck **Check updates on start up** and close the prompt.
-7. If Windows reports that `msvbvm50.dll` is missing, use the included Visual Basic 5 Runtime installer. Do not install it preemptively if Bruteforce already launches.
-8. If Bruteforce gives an initial first-run information prompt, close it.
-9. If it asks whether to create a template immediately, choose **No** for that prompt.
-10. Click the **...** browse button and choose the folder that contains your working `PS3` directory. Example:
-
-    ```text
-    C:\Blitz2MoneyMod\Working
-    ```
-
-    with the save underneath it like:
-
-    ```text
-    C:\Blitz2MoneyMod\Working\PS3\SAVEDATA\BLUS30203\...
-    ```
-
-11. Press **Ctrl+T** in Bruteforce, confirm creation of a profile/template, and give it a simple name such as `Main`.
-
-### Things you should NOT do for this guide
-
-The Project Lounge article also explains how to import **somebody else's** save, unlock saves for other profiles, and change game regions. That is not what this editor needs when you are editing your own Blitz save for the same PS3/profile.
-
-For this workflow, do **not** randomly use:
-
-- `Unlock Save to work on any PS3 account`
-- `Change Title ID/Region`
-- account-ID changes
-- region conversion
-- unrelated built-in cheats
-
-Keep the operation as boring as possible: decrypt your own save, patch `BSAV0.SAV`, then re-encrypt/rebuild it.
-
----
-
-# Part 4 — Decrypt the Blitz save
-
-1. In Bruteforce, select the **Blitz: The League II** save.
-2. Click:
-
-   ```text
-   Decrypt PFD >
-   ```
-
-3. Choose:
-
-   ```text
-   Decrypt All
-   ```
-
-4. Confirm **Yes** when asked.
-5. Leave Bruteforce open.
-
-At this point the `BSAV0.SAV` inside your **Working** save folder is the file this money editor expects.
-
-**Do not feed the money editor an encrypted `BSAV0.SAV`.**
-
----
-
-# Part 5 — Patch the money
-
-1. Double-click:
-
-   ```text
-   Blitz2MoneyTool.html
-   ```
-
-2. Your normal web browser opens the editor. Internet access is not required.
-3. Click the file selector and choose the **decrypted**:
-
-   ```text
-   BSAV0.SAV
-   ```
-
-   from your **Working** save folder.
-4. The editor analyzes the file before enabling the patch button.
-5. Look at **Detected campaigns**.
-
-For each occupied slot, the tool shows:
-
-- Slot number
-- Current cash
-- Money spent
-- Whether the duplicated save structures agree
-
-If the number of detected campaigns is wrong, or it says **No recognized Blitz II campaign structures were found**, **STOP**. Do not try to force the patch.
-
-6. Enter the amount of current cash you want.
-
-The tested default is:
+In game:
 
 ```text
-$8,500,000
+Strength: 21 -> 26
 ```
 
-That amount has been tested with five campaign slots, including heavily customized teams, and is enough to purchase all facility upgrades with a small buffer.
+This confirms that the custom TGH stat mutation works end-to-end on an ordinary roster player.
 
-The observed save-format maximum is:
+### Stat cap note
+
+Normal gameplay displays player ratings no higher than **100**.
+
+v1.2 never writes a mapped save-side stat modifier above `100`. When possible it chooses a field that can receive the full +5 without the modifier itself passing 100.
+
+The game combines these save-side modifiers with built-in player base ratings (and potentially other bonuses). Those built-in base-rating values have **not yet been decoded from this save structure**, so v1.2 does not pretend it can mathematically reconstruct every player's final displayed rating before the game loads it.
+
+No intentional test of hacked displayed ratings above 100 has been performed.
+
+## Player stat modifier map
+
+A controlled training test and two direct save probes mapped the persistent player modifier block.
+
+Relative to the player's ten-byte modifier vector:
+
+| Vector index | Visible stat |
+|---:|---|
+| 0 | Speed |
+| 1 | Agility |
+| 2 | **Unknown / not displayed** |
+| 3 | Strength |
+| 4 | Hands |
+| 5 | Break Tackle |
+| 6 | Pass/Kick |
+| 7 | Tackle |
+| 8 | Block |
+| 9 | Resist Injury |
+
+The unknown index `2` changed during a probe without changing any of the nine ratings on the player screen. v1.2 does not touch it when applying the custom TGH effect.
+
+### How the mapping was proven
+
+One controlled player had normal Speed training resolve from:
 
 ```text
-$16,777,215
+Speed 70 -> 77
 ```
 
-The editor refuses anything above that value because one of the game's current-cash fields is only 24 bits wide.
-
-7. Click:
-
-   ```text
-   Patch all detected campaigns
-   ```
-
-8. Your browser downloads a new file named exactly:
-
-   ```text
-   BSAV0.SAV
-   ```
-
-9. Replace the **decrypted `BSAV0.SAV` in the Working folder** with the newly downloaded file.
-10. Do not replace anything in your `Original` backup.
-
-The editor intentionally creates a new download instead of modifying your selected file in place.
-
----
-
-# Part 6 — Re-encrypt and rebuild the PS3 save
-
-Go back to Bruteforce with the Blitz save selected.
-
-Follow these operations in order:
-
-1. Click:
-
-   ```text
-   Update PFD >
-   ```
-
-2. Select a **Full update**.
-3. Click **Yes** when asked to encrypt the files.
-4. If this menu option is available/not greyed out, click:
-
-   ```text
-   Encrypt PFD > Encrypt decrypted files
-   ```
-
-5. Click:
-
-   ```text
-   Verify PFD >
-   ```
-
-   Make sure Bruteforce does not report an error.
-
-6. Click:
-
-   ```text
-   Rebuild > Rebuild Full
-   ```
-
-7. Confirm the resulting prompt.
-
-Do not skip the rebuild step just because everything already looks correct. The referenced Bruteforce guide treats the full rebuild as part of the finished-save process.
-
----
-
-# Part 7 — Put the save back on the USB
-
-Your finished save folder needs to be under:
+and the first modifier byte changed:
 
 ```text
-USB:\PS3\SAVEDATA\
+0 -> 7
 ```
 
-For the verified North American release, that means the folder containing `PARAM.SFO`, `PARAM.PFD`, `BSAV0.SAV`, etc. belongs under the BLUS30203 save directory.
+A later probe gave the first nine candidate bytes unique deltas. The resulting visible changes mapped Speed, Agility, Strength, Hands, Break Tackle, Pass/Kick, Tackle, and Block in one screenshot.
 
-Copy the **whole finished save folder**, not only `BSAV0.SAV`.
-
-Safely eject the USB from Windows.
-
----
-
-# Part 8 — Copy the modified save back to the stock PS3
-
-1. Plug the USB into the PS3.
-2. Go to:
-
-   ```text
-   Game
-   > Saved Data Utility (PS3)
-   > USB Device
-   ```
-
-3. Highlight **Blitz: The League II**.
-4. Press **Triangle**.
-5. Choose **Copy**.
-6. If the PS3 warns that a save already exists, make sure you really have your untouched backup, then confirm the overwrite.
-7. Launch Blitz: The League II.
-
----
-
-# Part 9 — Prove the save actually works
-
-Do not stop at the campaign-select screen.
-
-For each patched campaign:
-
-1. Load the campaign.
-2. Confirm the cash is correct **inside** the campaign.
-3. Buy at least one item/upgrade.
-4. Save the campaign normally.
-5. Exit/reload the game or campaign.
-6. Confirm the money and purchase still exist.
-
-This verifies that the edited save is not merely displaying a changed summary value.
-
----
-
-# Troubleshooting
-
-## The editor says it found zero campaigns
-
-Most likely:
-
-- `BSAV0.SAV` is still encrypted.
-- You selected the wrong file.
-- You selected a file from the wrong copy/folder.
-- Your save is from an untested region or has a structure this version does not know.
-- The save is damaged.
-
-Go back to the untouched backup and start again. Do not manually force offsets.
-
-## The editor shows a structure mismatch
-
-The file contains cash copies that disagree. This can happen with an old or partially edited save. The patcher will attempt to make the current-cash copies agree, but if you did not expect the mismatch, make another backup before continuing.
-
-## Bruteforce will not decrypt the save
-
-Check the setup section above. In particular:
-
-- Make sure you are using the prepared 4.7.5 folder from the referenced guide.
-- Do not install the broken Cheats Repository update when prompted.
-- Only install the VB5 runtime if Windows says the DLL is missing.
-- Confirm Bruteforce is pointed at the parent folder containing the `PS3` directory.
-
-## PS3 says the save is corrupted
-
-The money editor repairs **Blitz's internal checksum**, but Sony's PS3 save layer still has to be encrypted/rebuilt correctly.
-
-Start again from the backup and repeat:
+A final isolated probe changed the tenth candidate:
 
 ```text
-Decrypt All
-> patch BSAV0.SAV
-> Update PFD / full update
-> encrypt files
-> Verify PFD
-> Rebuild Full
+0 -> 10
 ```
 
-Also make sure you copied the **entire finished save folder**, not just the edited game file.
-
-## The campaign select screen has the money, but loading the campaign does not
-
-Do not use a generic hex edit that changes only the obvious summary cash fields. This editor updates all four known current-cash representations specifically to prevent that problem.
-
-If this editor itself produces that behavior on a new save, keep the broken save and report it along with the game's region/title ID. It may represent a previously unknown save structure.
-
-## I want more than $16,777,215
-
-This version intentionally refuses it. One current-cash representation is only three bytes (24 bits), so `$16,777,215` (`0xFFFFFF`) is the largest value that representation can hold.
-
-The game may behave unpredictably if normal play later pushes cash-on-hand above that value. Keep backups.
-
----
-
-# Privacy
-
-`Blitz2MoneyTool.html` is offline/local.
-
-It does not:
-
-- upload your save
-- send your PSN/account information anywhere
-- use analytics
-- use telemetry
-- use cookies or browser storage
-- call an API
-- load a remote JavaScript library
-
-Your selected file is read into browser memory and the patched result is generated as a local download.
-
-The help hyperlink to The Project Lounge only opens if you click it. Visiting any external website is separate from the save editor itself.
-
-See `PRIVACY.md` for more detail.
-
----
-
-# Technical summary
-
-For every detected campaign, the editor repairs four representations of current cash:
-
-1. Plain 32-bit big-endian cash in the campaign summary.
-2. Plain 32-bit big-endian cash in the global campaign cash array.
-3. XOR-`0x3A` obfuscated positive 24-bit cash inside the serialized campaign.
-4. XOR-`0x3A` obfuscated signed negative 32-bit cash inside the serialized campaign.
-
-The deep campaign structure is located using signatures rather than one fixed absolute offset because player/team customization can shift serialized data.
-
-The game's internal checksum is a big-endian CRC using polynomial `0x04C11DB7`, initial value `0`, calculated over `0x254` through end-of-file, and stored at `0x250`.
-
-See `TECHNICAL_NOTES.md` for additional details.
-
----
-
-# Files in this release
+and Resist Injury changed:
 
 ```text
-Blitz2MoneyTool.html       Recommended GUI/offline editor
-START_HERE.txt             Short beginner checklist
-README.md                  Full step-by-step guide
-PRIVACY.md                 What the tool does/doesn't collect
-TECHNICAL_NOTES.md         Reverse-engineered save-format notes
-blitz2_money_tool.py       Command-line/reference implementation
-SHA256SUMS.txt             File hashes for this release
+81 -> 91
 ```
 
-No PS3 save files, `PARAM.SFO`, `PARAM.PFD`, account IDs, console IDs, PSN names, or test-user data are included in the release.
+with every other displayed rating unchanged.
 
----
+## Juice of the Week effects
 
-# Credits / references
+| Juice | Normal price | Effect |
+|---|---:|---|
+| Andersol | $55,000 | Removes Clash cooldown. |
+| Krextol | $40,000 | Adds +1 extra point to the skill trained that week. |
+| Hoptenal | $40,000 | Reduces stamina lost from tackles by 50%. |
+| Mastaphene | $60,000 | Prevents normal stamina drain from tackles/big hits, but injury-related stamina loss still applies. Injury-treatment minigames also do not restore stamina while the effect is active. |
+| Zoltox | $50,000 | Makes the player immune to injury. |
+| Letaciline | $40,000 | Successful Clash moves drain the opponent's Clash meter. |
+| Ultranol | $60,000 | Increases the severity of injuries caused. |
+| BF-56 | $65,000 | Ball carrier gains a Clash Icon for every 30 yards gained on a play. |
+| Cyloderm | $75,000 | Clash/Turbo drain 50% slower, and Dirty Hits cost 50% less Clash. |
+| TGH | $80,000 | Advertised as permanently +5 to one random statistic. See the compatibility note above. |
 
-The Windows/Bruteforce portion of this README was written specifically for this Blitz workflow using this public guide as the setup reference:
+## Zero-risk juice records
 
-**The Project Lounge — “How to Share and Mod PlayStation 3 Game Saves”**  
-https://theprojectlounge.co.uk/how-to-share-and-mod-playstation-3-game-saves/
+A normal juice record contains the drug enum and a 32-bit risk contribution.
 
-The Blitz-specific money structures and validation were reverse-engineered through controlled save comparisons and successful save/load/purchase testing on the PS3.
+For example, a decoded Mastaphene record can end in:
 
-Blitz: The League II and PlayStation are trademarks/properties of their respective owners. This is an unofficial fan-made utility and is not affiliated with or endorsed by the game publisher/developer or Sony.
+```text
+0C 00 00 00 14
+```
 
----
+where:
 
-# License
+```text
+0C          = Mastaphene enum 12
+00 00 00 14 = risk 20
+```
 
-MIT License.
+Changing only the risk contribution to zero while retaining the drug enum was tested on PS3. The player remained juiced, Team Risk became empty, and later normally juicing another player added only that new player's risk.
+
+New records created by the editor therefore use risk `0`.
+
+
+## Franchise juicing implementation
+
+Native TGH saves showed that Franchise has two real player-state copies in the active roster serialization. The game wrote the same TGH record to both copies:
+
+```text
+drug enum: TGH
+juice slot index: same on both copies
+risk: same on both copies
+```
+
+v1.2.1 reproduces that model with risk `0`.
+
+Local structural validation on the known Injuns post-game save confirmed:
+
+```text
+Franchise logical players added: 1
+serialized juice records added: 2
+roster serialized-size delta: +28
+both Franchise effect counts: +1
+same juice-slot index on both copies
+risk: 0 on both copies
+```
+
+A second local stress test inserted:
+
+```text
+Franchise + two ordinary players
+```
+
+which produced the normal logical total of three juiced players while correctly serializing four physical juice records (two for Franchise and one for each ordinary player).
+
+This implementation has completed stock-PS3 gameplay, save/reload, and next-week transition validation.
+
+## Arbitrary juice insertion
+
+Controlled save diffs showed that the game juices an ordinary player by:
+
+1. inserting a 14-byte effect record immediately before the player's serialized name;
+2. shifting the following roster data by 14 bytes;
+3. consuming 14 bytes of trailing XOR-zero padding;
+4. increasing the roster serialized-size byte by 14;
+5. increasing that player's effect/status count by 1.
+
+The v1.1 editor reconstruction was subsequently tested on a stock PS3 with multiple editor-created players. The inserted players appeared normally in the juicing screen, Team Risk remained zero, a game completed successfully, nobody was busted in that test, and the next week's juice state initialized normally.
+
+Editor-created Mastaphene was separately confirmed to produce its intended stamina behavior.
+
+v1.2 therefore keeps the feature and still enforces the normal three-player total.
+
+v1.2.1 implements the native Franchise behavior discovered after the original v1.2 build: matching juice records are written to both real Franchise player-state copies. The normal three-player cap counts Franchise as one logical player.
+
+## Campaign detection fix
+
+Early v1.1 builds used this 16-byte sequence as though every byte were fixed:
+
+```text
+C5 1C D1 42 5B 3A 3A 3B 38 39 45 07 51 07 3A 3A
+```
+
+Later campaign progress proved that the final two bytes can change.
+
+v1.2 uses only the stable 14-byte anchor:
+
+```text
+C5 1C D1 42 5B 3A 3A 3B 38 39 45 07 51 07
+```
+
+The positive 24-bit cash field remains at:
+
+```text
+anchor + 0x10
+```
+
+This fixed the case where a valid five-campaign save was incorrectly shown as containing only two campaigns.
+
+## Per-campaign money editing
+
+Each detected campaign now has its own:
+
+- **Edit current cash for this campaign** checkbox;
+- target cash field.
+
+The editor still updates all four known current-cash representations for any enabled campaign:
+
+1. plain 32-bit campaign-summary cash;
+2. plain 32-bit global campaign cash;
+3. XOR-`0x3A` positive 24-bit campaign cash;
+4. XOR-`0x3A` signed negative 32-bit campaign cash.
+
+Money spent is preserved.
+
+The observed current-cash limit remains:
+
+```text
+0xFFFFFF = 16,777,215
+```
+
+## Juice insertion does not charge cash
+
+When the editor itself creates a juice record, it does not subtract the drug price and does not increment money spent.
+
+The normal price is shown in the UI for reference only.
+
+## Stock-PS3 workflow
+
+This editor modifies the game's **decrypted** `BSAV0.SAV`.
+
+It does not decrypt Sony's save container and does not resign `PARAM.PFD`.
+
+The tested workflow remains:
+
+```text
+PS3 XMB
+  -> copy save to USB
+Windows PC
+  -> Bruteforce Save Data 4.7.5
+  -> decrypt save
+  -> edit decrypted BSAV0.SAV with Blitz2SaveEditor.html
+  -> replace the working BSAV0.SAV
+  -> update/encrypt/rebuild PFD
+USB
+  -> copy save back using normal PS3 Saved Data Utility
+```
+
+No HEN, CFW, or on-console Apollo installation is required for this workflow.
+
+## Important weekly-juice behavior
+
+The game can reroll Juice of the Week when a new week is initialized.
+
+For reliable forced-drug editing:
+
+1. enter the campaign at the start of the week;
+2. let the game initialize the weekly juice;
+3. back out so that state saves;
+4. decrypt and edit the save on PC;
+5. return it to PS3.
+
+## Internal Blitz checksum
+
+The game's internal checksum is stored at:
+
+```text
+0x250 - 0x253
+```
+
+It covers:
+
+```text
+0x254 through end-of-file
+```
+
+Algorithm:
+
+- CRC32Big / non-reflected;
+- polynomial `0x04C11DB7`;
+- initial value `0`;
+- stored big-endian.
+
+The browser rebuilds this checksum after all edits and re-analyzes the generated save before download.
+
+## Full stat editing
+
+The nine visible modifier fields are now mapped well enough that full manual stat editing is technically plausible.
+
+v1.2 deliberately does **not** expose a full stat editor yet. The next problem to solve is how to reconstruct or safely account for each player's built-in base ratings and other possible bonuses so an absolute displayed-value editor can enforce the game's 100-point ceiling correctly.
+
+## Privacy
+
+The editor is entirely local. It contains no upload code, analytics, telemetry, remote scripts, or network requests.
+
+No development/test saves, PSN/account identifiers, console identifiers, user-created Franchise names, usernames, or local machine paths are included in this release.
+
+See `PRIVACY.md`.
+
+## License
+
+MIT License. See `LICENSE`.
 
 Copyright (c) 2026 hickoryit41
-
-See [`LICENSE`](LICENSE) for the full license text.

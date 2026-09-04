@@ -1,31 +1,18 @@
 # Privacy
 
-## Short version
+`Blitz2SaveEditor.html` is a self-contained offline HTML file.
 
-The Blitz: The League II Money Tool does not transmit your save anywhere.
+It contains:
 
-`Blitz2MoneyTool.html` is a self-contained local HTML/JavaScript file. When you choose `BSAV0.SAV`, your browser reads it locally, modifies a copy in memory, and creates a local download.
+- no upload code;
+- no analytics;
+- no telemetry;
+- no cookies;
+- no remote scripts;
+- no network requests.
 
-## The editor does not contain
+When you choose `BSAV0.SAV`, the browser reads it locally. Patching happens in browser memory and the output is created as a local download.
 
-- Any uploaded PS3 save from development/testing
-- `PARAM.SFO` or `PARAM.PFD`
-- PS3 account IDs
-- console IDs
-- PSN usernames
-- player/team names from test saves
-- Windows usernames or local file paths from development
-- analytics IDs
-- telemetry endpoints
-- tracking pixels
-- remote JavaScript libraries
+The release package contains no development/test save files, PSN/account identifiers, console identifiers, user-created Franchise names, usernames, or local machine paths.
 
-## Network behavior
-
-The editor contains no `fetch`, `XMLHttpRequest`, WebSocket, analytics, or remote-script code.
-
-There is one normal clickable help hyperlink to The Project Lounge's Bruteforce guide. The editor does not open that page automatically. If you click an external link, your browser visits that website normally; that visit is separate from the save editor and is governed by that site's privacy practices.
-
-## Publishing this release
-
-This public package intentionally contains only source/docs and no sample save files. Anyone redistributing it should keep it that way unless they have permission to distribute a particular save.
+The editor does not contact GitHub, OpenAI, Sony, Midway, Bruteforce Save Data, or any other service while processing a save.
